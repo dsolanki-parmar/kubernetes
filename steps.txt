@@ -1,0 +1,20 @@
+Install kubernetes master and node
+
+You will need CNI (container network interface)
+Anyone can be used to connect to node on diff host
+e.g. calico
+Connect node to master
+
+check on master that node is added
+
+master@Deepika-master:~$ kubectl get nodes
+NAME             STATUS   ROLES    AGE    VERSION
+deepika-master   Ready    master   120m   v1.18.2
+deepika-node01   Ready    <none>   80m    v1.18.2
+master@Deepika-master:~$
+
+master@Deepika-master:~$ kubectl proxy &
+Running at 127.0.0.1:8001
+
+master@Deepika-master:~$ curl http://127.0.0.1:8001/api/v1/pods
+

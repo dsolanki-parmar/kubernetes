@@ -1,0 +1,8 @@
+1>kubectl get ns
+Get the namespace
+2> kubectl get nodes
+3> kubectl get pods
+4>#Creating a pod with YAML
+kubectl apply -f pod.yaml
+5>kubectl explain <pod /anyobject>
+6>kubectl get pods --all-namespaces
