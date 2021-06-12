@@ -1,0 +1,146 @@
+Turn off swap space
+ swapoff -a
+
+K8s Installation:
+
+
+1.	Login in to Both Master and Node machines in two separate terminals and do the following steps:
+a.	Create a docker.sh
+i.	nano docker.sh
+ii.	Paste the following content:
+ 
+# Install Docker CE
+## Set up the repository:
+### Install packages to allow apt to use a repository over HTTPS
+apt-get update && apt-get install -y \
+  apt-transport-https ca-certificates curl software-properties-common gnupg2
+
+### Add Docker’s official GPG key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+
+### Add Docker apt repository.
+add-apt-repository \
+  "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) \
+  stable"
+
+## Install Docker CE.
+apt-get update && apt-get install -y \
+  containerd.io=1.2.13-1 \
+  docker-ce=5:19.03.8~3-0~ubuntu-$(lsb_release -cs) \
+  docker-ce-cli=5:19.03.8~3-0~ubuntu-$(lsb_release -cs)
+
+# Setup daemon.
+cat > /etc/docker/daemon.json <<EOF
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+
+mkdir -p /etc/systemd/system/docker.service.d
+
+# Restart docker.
+systemctl daemon-reload
+systemctl restart docker
+
+
+
+iii.	chmod +x docker.sh
+iv.	./docker.sh
+
+b.	Create a k8s.sh
+i.	nano k8s.sh
+ii.	Paste the following content:
+
+
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+
+iii.	chmod +x k8s.sh
+iv.	./k8s.sh
+
+
+ 
+If u restarting ur old setup then just do 
+‘kubeadm reset’
+2.	On Master Node:
+a.	Execute the following 
+i.	kubeadm init --pod-network-cidr=192.168.0.0/16
+
+b.	Please capture the output somewhere safely as this will be needed for future:
+Your Kubernetes control-plane has initialized successfully!
+To start using your cluster, you need to run the following as a regular user:
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+i.e from 
+https://docs.projectcalico.org/getting-started/kubernetes/quickstart
+OR 
+Use 
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 167.71.224.164:6443 --token 8yujft.guh9ryfa5tczgccp \
+	--discovery-token-ca-cert-hash sha256:24f1194dd4cde8db1b31e3d63a30aa674ed0b1207ce3196a63540a3e55e0d473
+
+c.	We now need to create  a normal user
+i.	adduser master
+Adding user `master' ...
+Adding new group `master' (1000) ...
+Adding new user `master' (1000) with group `master' ...
+Creating home directory `/home/master' ...
+Copying files from `/etc/skel' ...
+Enter new UNIX password:
+
+Give password as master123 
+Other things accept default
+ii.	usermod -aG sudo master
+
+d.	Please capture the output somewhere safely as this will be needed for future
+
+i.	su - master
+ii.	mkdir -p $HOME/.kube
+iii.	sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+iv.	sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+e.	kubectl get nodes
+f.	You should now deploy a pod network to the cluster.
+i.	Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at: https://kubernetes.io/docs/concepts/cluster-administration/addons/
+g.	Let’s open the above link
+h.	Now we shall install CNI - Calico
+i.	Follow the steps from calio website
+
+https://docs.projectcalico.org/getting-started/kubernetes/quickstart
+	
+i.	kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml 
+The below step is mandatory! 
+Remove the taints on the master so that you can schedule pods on it.
+
+kubectl taint nodes --all node-role.kubernetes
+
+Use these commands if u get error after restart node and cert error is observed:
+==================================
+   kubectl get nodes
+   kubeadm reset
+   kubeadm init --pod-network-cidr=192.168.0.0/16
+   export KUBECONFIG=/etc/kubernetes/admin.conf
+   kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+   kubectl taint nodes --all node-role.kubernetes.io/master-
+
+
